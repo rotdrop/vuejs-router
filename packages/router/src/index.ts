@@ -9,6 +9,7 @@ export { createWebHistory } from './history/html5'
 export { createMemoryHistory } from './history/memory'
 export { createRouterMatcher } from './matcher'
 export type { RouterMatcher } from './matcher'
+export type { TransitionType } from './types'
 
 export { parseQuery, stringifyQuery } from './query'
 export type {

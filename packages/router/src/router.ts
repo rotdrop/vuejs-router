@@ -3,6 +3,7 @@ import type {
   Lazy,
   RouteLocationOptions,
   MatcherLocationRaw,
+  TransitionType,
 } from './types'
 import { isRouteLocation, isRouteName } from './types'
 import type {
@@ -217,9 +218,10 @@ export function createRouter(options: RouterOptions): Router {
 
   function resolve(
     rawLocation: RouteLocationRaw,
+    transition: TransitionType,
     currentLocation?: RouteLocationNormalizedLoaded
   ): RouteLocationResolved {
-    // const resolve: Router['resolve'] = (rawLocation: RouteLocationRaw, currentLocation) => {
+    // const resolve: Router['resolve'] = (rawLocation: RouteLocationRaw, transition, currentLocation) => {
     // const objectLocation = routerLocationAsObject(rawLocation)
     // we create a copy to modify it later
     currentLocation = assign({}, currentLocation || currentRoute.value)
@@ -249,12 +251,13 @@ export function createRouter(options: RouterOptions): Router {
         params: decodeParams(matchedRoute.params),
         redirectedFrom: undefined,
         href,
+        transition,
       })
     }
 
     if (__DEV__ && !isRouteLocation(rawLocation)) {
       diagnostics.VUE_ROUTER_R0005({ rawLocation })
-      return resolve({})
+      return resolve({}, 'unknown')
     }
 
     let matcherLocation: MatcherLocationRaw
@@ -340,6 +343,7 @@ export function createRouter(options: RouterOptions): Router {
       {
         redirectedFrom: undefined,
         href,
+        transition,
       }
     )
   }
@@ -424,12 +428,16 @@ export function createRouter(options: RouterOptions): Router {
     to: RouteLocationRaw | RouteLocation,
     redirectedFrom?: RouteLocation
   ): Promise<NavigationFailure | void | undefined> {
-    const targetLocation: RouteLocation = (pendingLocation = resolve(to))
+    const replace = (to as RouteLocationOptions).replace === true
+    const transition = replace ? 'replace' : 'push'
+    const targetLocation: RouteLocation = (pendingLocation = resolve(
+      to,
+      transition
+    ))
     const from = currentRoute.value
     const data: HistoryState | undefined = (to as RouteLocationOptions).state
     const force: boolean | undefined = (to as RouteLocationOptions).force
     // to could be a string where `replace` is a function
-    const replace = (to as RouteLocationOptions).replace === true
 
     const shouldRedirect = handleRedirectRecord(targetLocation, from)
 
@@ -494,7 +502,7 @@ export function createRouter(options: RouterOptions): Router {
               // we are redirecting to the same location we were already at
               isSameRouteLocation(
                 stringifyQuery,
-                resolve(failure.to),
+                resolve(failure.to, 'unknown'),
                 toLocation
               ) &&
               // and we have done it a couple of times
@@ -761,8 +769,9 @@ export function createRouter(options: RouterOptions): Router {
     if (removeHistoryListener) return
     removeHistoryListener = routerHistory.listen((to, _from, info) => {
       if (!router.listening) return
+      const transition: TransitionType = info.type
       // cannot be a redirect route because it was in history
-      const toLocation = resolve(to) as RouteLocationNormalized
+      const toLocation = resolve(to, transition) as RouteLocationNormalized
 
       // due to dynamic routing, and to hash history with manual navigation
       // (manually changing the url or calling history.hash = '#/somewhere'),

@@ -150,6 +150,9 @@ export interface RouteLocationMatched extends RouteRecordNormalized {
   components: Record<string, RouteComponent> | null | undefined
 }
 
+/** The type of the transition which led to the current route. */
+export type TransitionType = 'unknown' | 'push' | 'pop' | 'replace'
+
 /**
  * Base properties for a normalized route location.
  *
@@ -177,6 +180,10 @@ export interface _RouteLocationBase extends Pick<
    * on the current location.
    */
   redirectedFrom: RouteLocation | undefined
+  /**
+   * Contains the transition type to the current route.
+   */
+  transition?: TransitionType
 }
 
 /**

@@ -57,6 +57,7 @@ import type {
   RawRouteComponent,
   RouteLocationOptions,
   RouteMeta,
+  TransitionType,
 } from '../types'
 import { useCallbacks } from '../utils/callbacks'
 import { isSameRouteLocation, START_LOCATION_NORMALIZED } from '../location'
@@ -456,6 +457,7 @@ export interface EXPERIMENTAL_Router_Base<
    */
   resolve<Name extends keyof RouteMap = keyof RouteMap>(
     to: RouteLocationAsRelativeTyped<RouteMap, Name>,
+    transition: TransitionType,
     // NOTE: This version doesn't work probably because it infers the type too early
     // | RouteLocationAsRelative<Name>
     currentLocation?: RouteLocationNormalizedLoaded
@@ -463,6 +465,7 @@ export interface EXPERIMENTAL_Router_Base<
   resolve(
     // not having the overload produces errors in RouterLink calls to router.resolve()
     to: RouteLocationAsString | RouteLocationAsRelative | RouteLocationAsPath,
+    transition: TransitionType,
     currentLocation?: RouteLocationNormalizedLoaded
   ): RouteLocationResolved
 
