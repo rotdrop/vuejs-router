@@ -125,6 +125,7 @@
   "scripts": {
     "dev": "vitest --ui",
     "build": "tsdown",
+    "prepare": "npm run build",
     "build:old": "rimraf dist && rollup -c rollup.config.mjs",
     "build:playground": "vue-tsc --noEmit && vite build --config playground/vite.config.ts",
     "build:e2e": "vue-tsc --noEmit && vite build --config e2e/vite.config.mjs",
