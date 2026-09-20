@@ -13,6 +13,7 @@ import type {
   RouteLocationNormalizedLoaded,
   NavigationGuardWithThis,
   NavigationHookAfter,
+  NavigationTransition,
   RouteLocationResolved,
   RouteRecordNameGeneric,
 } from './typed-routes'
@@ -166,6 +167,7 @@ export function createRouter(options: RouterOptions): Router {
   // used within `computed()` and still pick up added or removed routes
   const routesVersion = shallowRef(0)
   let pendingLocation: RouteLocation = START_LOCATION_NORMALIZED
+  let pendingTransition: NavigationTransition
 
   // leave the scrollRestoration if no scrollBehavior is provided
   if (isBrowser && options.scrollBehavior && 'scrollRestoration' in history) {
@@ -394,6 +396,7 @@ export function createRouter(options: RouterOptions): Router {
         {
           from,
           to,
+          transition: pendingTransition,
         }
       )
     }
@@ -465,6 +468,8 @@ export function createRouter(options: RouterOptions): Router {
 
     const shouldRedirect = handleRedirectRecord(targetLocation, from)
 
+    pendingTransition = replace ? 'replace' : 'push'
+
     if (shouldRedirect)
       return pushWithRedirect(
         assign(locationAsObject(shouldRedirect), {
@@ -491,6 +496,7 @@ export function createRouter(options: RouterOptions): Router {
         {
           to: toLocation,
           from,
+          transition: pendingTransition,
         }
       )
       // trigger scroll to allow scrolling to the same anchor
@@ -506,7 +512,7 @@ export function createRouter(options: RouterOptions): Router {
       )
     }
 
-    return (failure ? Promise.resolve(failure) : navigate(toLocation, from))
+    return (failure ? Promise.resolve(failure) : navigate(toLocation, from, pendingTransition))
       .catch((error: NavigationFailure | NavigationRedirectError) =>
         isNavigationFailure(error)
           ? // navigation redirects still mark the router as ready
@@ -514,7 +520,7 @@ export function createRouter(options: RouterOptions): Router {
             ? error
             : markAsReady(error) // also returns the error
           : // reject any unknown error
-            triggerError(error, toLocation, from)
+            triggerError(error, toLocation, from, pendingTransition)
       )
       .then((failure: NavigationFailure | NavigationRedirectError | void) => {
         if (failure) {
@@ -579,7 +585,8 @@ export function createRouter(options: RouterOptions): Router {
         triggerAfterEach(
           toLocation as RouteLocationNormalizedLoaded,
           from,
-          failure
+          failure,
+          pendingTransition
         )
         return failure
       })
@@ -610,7 +617,8 @@ export function createRouter(options: RouterOptions): Router {
 
   function navigate(
     to: RouteLocationNormalized,
-    from: RouteLocationNormalizedLoaded
+    from: RouteLocationNormalizedLoaded,
+    transition?: NavigationTransition
   ): Promise<any> {
     let guards: Lazy<any>[]
 
@@ -622,13 +630,14 @@ export function createRouter(options: RouterOptions): Router {
       leavingRecords.reverse(),
       'beforeRouteLeave',
       to,
-      from
+      from,
+      transition,
     )
 
     // leavingRecords is already reversed
     for (const record of leavingRecords) {
       record.leaveGuards.forEach(guard => {
-        guards.push(guardToPromiseFn(guard, to, from))
+        guards.push(guardToPromiseFn(guard, to, from, transition))
       })
     }
 
@@ -647,7 +656,7 @@ export function createRouter(options: RouterOptions): Router {
           // check global guards beforeEach
           guards = []
           for (const guard of beforeGuards.list()) {
-            guards.push(guardToPromiseFn(guard, to, from))
+            guards.push(guardToPromiseFn(guard, to, from, transition))
           }
           guards.push(canceledNavigationCheck)
 
@@ -664,7 +673,7 @@ export function createRouter(options: RouterOptions): Router {
 
           for (const record of updatingRecords) {
             record.updateGuards.forEach(guard => {
-              guards.push(guardToPromiseFn(guard, to, from))
+              guards.push(guardToPromiseFn(guard, to, from, transition))
             })
           }
           guards.push(canceledNavigationCheck)
@@ -680,9 +689,9 @@ export function createRouter(options: RouterOptions): Router {
             if (record.beforeEnter) {
               if (isArray(record.beforeEnter)) {
                 for (const beforeEnter of record.beforeEnter)
-                  guards.push(guardToPromiseFn(beforeEnter, to, from))
+                  guards.push(guardToPromiseFn(beforeEnter, to, from, transition))
               } else {
-                guards.push(guardToPromiseFn(record.beforeEnter, to, from))
+                guards.push(guardToPromiseFn(record.beforeEnter, to, from, transition))
               }
             }
           }
@@ -703,6 +712,7 @@ export function createRouter(options: RouterOptions): Router {
             'beforeRouteEnter',
             to,
             from,
+            transition,
             runWithContext
           )
           guards.push(canceledNavigationCheck)
@@ -714,7 +724,7 @@ export function createRouter(options: RouterOptions): Router {
           // check global guards beforeResolve
           guards = []
           for (const guard of beforeResolveGuards.list()) {
-            guards.push(guardToPromiseFn(guard, to, from))
+            guards.push(guardToPromiseFn(guard, to, from, transition))
           }
           guards.push(canceledNavigationCheck)
 
@@ -732,13 +742,16 @@ export function createRouter(options: RouterOptions): Router {
   function triggerAfterEach(
     to: RouteLocationNormalizedLoaded,
     from: RouteLocationNormalizedLoaded,
-    failure?: NavigationFailure | void
+    failure?: NavigationFailure | void,
+    transition?: NavigationTransition
   ): void {
     // navigation is confirmed, call afterGuards
     // TODO: wrap with error handlers
     afterGuards
       .list()
-      .forEach(guard => runWithContext(() => guard(to, from, failure)))
+      .forEach(guard =>
+        runWithContext(() => guard(to, from, failure, transition))
+      )
   }
 
   /**
@@ -812,6 +825,7 @@ export function createRouter(options: RouterOptions): Router {
       }
 
       pendingLocation = toLocation
+      pendingTransition = 'pop'
       const from = currentRoute.value
 
       // Unknown-direction navigations cannot be tied to a history entry.
@@ -820,7 +834,7 @@ export function createRouter(options: RouterOptions): Router {
         saveScrollPosition(getScrollKey(from.fullPath, info.delta))
       }
 
-      navigate(toLocation, from)
+      navigate(toLocation, from, pendingTransition)
         .catch((error: NavigationFailure | NavigationRedirectError) => {
           if (
             isNavigationFailure(
@@ -875,7 +889,7 @@ export function createRouter(options: RouterOptions): Router {
             routerHistory.go(-info.delta, false)
           }
           // unrecognized error, transfer to the global handler
-          return triggerError(error, toLocation, from)
+          return triggerError(error, toLocation, from, pendingTransition)
         })
         .then((failure: NavigationFailure | void) => {
           failure =
@@ -912,7 +926,8 @@ export function createRouter(options: RouterOptions): Router {
           triggerAfterEach(
             toLocation as RouteLocationNormalizedLoaded,
             from,
-            failure
+            failure,
+            pendingTransition
           )
         })
         // avoid warnings in the console about uncaught rejections, they are logged by triggerErrors
@@ -937,12 +952,13 @@ export function createRouter(options: RouterOptions): Router {
   function triggerError(
     error: any,
     to: RouteLocationNormalized,
-    from: RouteLocationNormalizedLoaded
+    from: RouteLocationNormalizedLoaded,
+    transition?: NavigationTransition
   ): Promise<unknown> {
     markAsReady(error)
     const list = errorListeners.list()
     if (list.length) {
-      list.forEach(handler => handler(error, to, from))
+      list.forEach(handler => handler(error, to, from, transition))
     } else {
       if (__DEV__) {
         diagnostics.VUE_ROUTER_R0010()
@@ -1007,7 +1023,11 @@ export function createRouter(options: RouterOptions): Router {
           position =>
             to === currentRoute.value && position && scrollToPosition(position)
         )
-        .catch(err => to === currentRoute.value && triggerError(err, to, from))
+        .catch(
+          err =>
+            to === currentRoute.value &&
+            triggerError(err, to, from, pendingTransition)
+        )
     )
   }
 

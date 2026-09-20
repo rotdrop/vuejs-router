@@ -9,6 +9,7 @@ import type {
   RouteLocationRaw,
   NavigationGuardNext,
   NavigationGuardNextCallback,
+  NavigationTransition,
 } from './typed-routes'
 
 import type { NavigationFailure, NavigationRedirectError } from './errors'
@@ -110,12 +111,14 @@ export function onBeforeRouteUpdate(updateGuard: NavigationGuard) {
 export function guardToPromiseFn(
   guard: NavigationGuard,
   to: RouteLocationNormalized,
-  from: RouteLocationNormalizedLoaded
+  from: RouteLocationNormalizedLoaded,
+  transition?: NavigationTransition,
 ): () => Promise<void>
 export function guardToPromiseFn(
   guard: NavigationGuard,
   to: RouteLocationNormalized,
   from: RouteLocationNormalizedLoaded,
+  transition: NavigationTransition,
   record: RouteRecordNormalized,
   name: string,
   runWithContext: <T>(fn: () => T) => T
@@ -124,6 +127,16 @@ export function guardToPromiseFn(
   guard: NavigationGuard,
   to: RouteLocationNormalized,
   from: RouteLocationNormalizedLoaded,
+  transition?: NavigationTransition,
+  record?: RouteRecordNormalized,
+  name?: string,
+  runWithContext?: <T>(fn: () => T) => T
+): () => Promise<void>
+export function guardToPromiseFn(
+  guard: NavigationGuard,
+  to: RouteLocationNormalized,
+  from: RouteLocationNormalizedLoaded,
+  transition?: NavigationTransition,
   record?: RouteRecordNormalized,
   name?: string,
   runWithContext: <T>(fn: () => T) => T = fn => fn()
@@ -146,6 +159,7 @@ export function guardToPromiseFn(
               {
                 from,
                 to,
+                transition,
               }
             )
           )
@@ -158,6 +172,7 @@ export function guardToPromiseFn(
               {
                 from: to,
                 to: valid,
+                transition,
               }
             )
           )
@@ -182,7 +197,8 @@ export function guardToPromiseFn(
           from,
           __DEV__
             ? withDeprecationWarning(canOnlyBeCalledOnce(next, to, from))
-            : next
+            : next,
+          transition
         )
       )
       let guardCall = Promise.resolve(guardReturn)
@@ -254,6 +270,7 @@ export function extractComponentsGuards(
   guardType: GuardType,
   to: RouteLocationNormalized,
   from: RouteLocationNormalizedLoaded,
+  transition?: NavigationTransition,
   runWithContext: <T>(fn: () => T) => T = fn => fn()
 ) {
   const guards: Array<() => Promise<void>> = []
@@ -311,7 +328,7 @@ export function extractComponentsGuards(
         const guard = options[guardType]
         guard &&
           guards.push(
-            guardToPromiseFn(guard, to, from, record, name, runWithContext)
+            guardToPromiseFn(guard, to, from, transition, record, name, runWithContext)
           )
       } else {
         // start requesting the chunk already
@@ -345,7 +362,7 @@ export function extractComponentsGuards(
 
             return (
               guard &&
-              guardToPromiseFn(guard, to, from, record, name, runWithContext)()
+              guardToPromiseFn(guard, to, from, transition, record, name, runWithContext)()
             )
           })
         )
