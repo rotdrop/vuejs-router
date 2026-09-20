@@ -1,5 +1,6 @@
 import type { MatcherLocationRaw, MatcherLocation } from './types'
 import type {
+  NavigationTransition,
   RouteLocationRaw,
   RouteLocationNormalized,
   RouteLocationNormalizedLoaded,
@@ -71,6 +72,10 @@ export interface NavigationFailure extends Error {
    * Route location we were navigating to
    */
   to: RouteLocationNormalized
+  /**
+   * Transition type if known.
+   */
+  transition?: NavigationTransition
 }
 
 /**
@@ -221,6 +226,7 @@ export interface _ErrorListener {
   (
     error: any,
     to: RouteLocationNormalized,
-    from: RouteLocationNormalizedLoaded
+    from: RouteLocationNormalizedLoaded,
+    transition?: NavigationTransition
   ): any
 }

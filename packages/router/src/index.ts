@@ -75,6 +75,7 @@ export type {
   NavigationGuardReturn,
   NavigationGuardWithThis,
   NavigationHookAfter,
+  NavigationTransition,
   ParamValue,
   ParamValueOneOrMore,
   ParamValueZeroOrMore,

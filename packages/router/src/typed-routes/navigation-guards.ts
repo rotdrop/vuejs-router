@@ -8,6 +8,11 @@ import type { NavigationFailure } from '../errors'
 import type { ComponentPublicInstance } from 'vue'
 
 /**
+ * Transition type passed as last parameter to navigation guards.
+ */
+export type NavigationTransition = 'replace' | 'pop' | 'push'
+
+/**
  * Return types for a Navigation Guard. Based on `TypesConfig`
  *
  * @see {@link TypesConfig}
@@ -27,7 +32,8 @@ export interface NavigationGuardWithThis<T> {
      * @deprecated Return a value from the guard instead of calling `next(value)`.
      * The callback will be removed in a future version of Vue Router.
      */
-    next: NavigationGuardNext
+    next: NavigationGuardNext,
+    transition?: NavigationTransition
   ): _Awaitable<NavigationGuardReturn>
 }
 
@@ -46,7 +52,8 @@ export interface _NavigationGuardResolved {
      * @deprecated Return a value from the guard instead of calling `next(value)`.
      * The callback will be removed in a future version of Vue Router.
      */
-    next: NavigationGuardNext
+    next: NavigationGuardNext,
+    transition?: NavigationTransition
   ): _Awaitable<NavigationGuardReturn>
 }
 
@@ -61,7 +68,8 @@ export interface NavigationGuard {
      * @deprecated Return a value from the guard instead of calling `next(value)`.
      * The callback will be removed in a future version of Vue Router.
      */
-    next: NavigationGuardNext
+    next: NavigationGuardNext,
+    transition?: NavigationTransition
   ): _Awaitable<NavigationGuardReturn>
 }
 
@@ -72,7 +80,8 @@ export interface NavigationHookAfter {
   (
     to: RouteLocationNormalizedLoaded,
     from: RouteLocationNormalizedLoaded,
-    failure?: NavigationFailure | void
+    failure?: NavigationFailure | void,
+    transition?: NavigationTransition
   ): unknown
 }
 
