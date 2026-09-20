@@ -123,6 +123,7 @@
     "./dist/*": "./dist/*"
   },
   "scripts": {
+    "prepare": "npm run build",
     "dev": "vitest --ui",
     "build": "tsdown",
     "build:old": "rimraf dist && rollup -c rollup.config.mjs",
